@@ -1,0 +1,4 @@
+mmpose/
+vis_results/
+
+*.pth
