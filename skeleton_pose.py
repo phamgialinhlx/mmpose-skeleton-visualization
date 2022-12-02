@@ -92,6 +92,11 @@ def main():
         default="",
         help='bg-link, default is the white color. You must enable the out-video-bg option to active this feature'
     )
+    parser.add_argument(
+        '--frame-skip',
+        default=0,
+        help="fram to skip"
+    )
 
     assert has_mmdet, 'Please install mmdet to run the demo.'
 
@@ -162,83 +167,88 @@ def main():
     output_layer_names = None
 
     print('Running inference...')
+    cnt_frame = 0 
     for frame_id, cur_frame in enumerate(mmcv.track_iter_progress(video)):
-        # get the detection results of current frame
-        # the resulting box is (x1, y1, x2, y2)
-        mmdet_results = inference_detector(det_model, cur_frame)
+        if cnt_frame == args.frame_skip + 1:
+            # get the detection results of current frame
+            # the resulting box is (x1, y1, x2, y2)
+            mmdet_results = inference_detector(det_model, cur_frame)
 
-        # keep the person class bounding boxes.
-        person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
+            # keep the person class bounding boxes.
+            person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
 
-        if args.use_multi_frames:
-            frames = collect_multi_frames(video, frame_id, indices,
-                                          args.online)
+            if args.use_multi_frames:
+                frames = collect_multi_frames(video, frame_id, indices,
+                                            args.online)
 
-        # test a single image, with a list of bboxes.
-        pose_results, returned_outputs = inference_top_down_pose_model(
-            pose_model,
-            frames if args.use_multi_frames else cur_frame,
-            person_results,
-            bbox_thr=args.bbox_thr,
-            format='xyxy',
-            dataset=dataset,
-            dataset_info=dataset_info,
-            return_heatmap=return_heatmap,
-            outputs=output_layer_names)
+            # test a single image, with a list of bboxes.
+            pose_results, returned_outputs = inference_top_down_pose_model(
+                pose_model,
+                frames if args.use_multi_frames else cur_frame,
+                person_results,
+                bbox_thr=args.bbox_thr,
+                format='xyxy',
+                dataset=dataset,
+                dataset_info=dataset_info,
+                return_heatmap=return_heatmap,
+                outputs=output_layer_names)
 
-        # import IPython; IPython.embed()
-        for x in pose_results:
-            x['bbox'] = [0,0,0,0]
-        # break
+            # import IPython; IPython.embed()
+            for x in pose_results:
+                x['bbox'] = [0,0,0,0]
+            # break
 
-        # import IPython; IPython.embed()
+            # import IPython; IPython.embed()
 
-        # show the results
-        vis_frame = vis_pose_result(
-            pose_model,
-            cur_frame,
-            pose_results,
-            dataset=dataset,
-            dataset_info=dataset_info,
-            kpt_score_thr=args.kpt_thr,
-            radius=args.radius,
-            thickness=args.thickness,
-            show=False)
+            # show the results
+            vis_frame = vis_pose_result(
+                pose_model,
+                cur_frame,
+                pose_results,
+                dataset=dataset,
+                dataset_info=dataset_info,
+                kpt_score_thr=args.kpt_thr,
+                radius=args.radius,
+                thickness=args.thickness,
+                show=False)
+            
+            bg = torch.full(cur_frame.shape, 255, dtype=torch.uint8).numpy(force=True) 
+            if args.bg_img != "":
+                bg = torchvision.io.read_image(args.bg_img).numpy(force=True) 
+                # print(bg.shape)
+                bg = rearrange(bg, 'a b c -> b c a')
+                # print (cur_frame.shape)
+                # print(bg.shape)
+            
+            # break
+
+            vis_bg_frame = vis_pose_result(
+                pose_model,
+                bg,
+                pose_results,
+                dataset=dataset,
+                dataset_info=dataset_info,
+                kpt_score_thr=args.kpt_thr,
+                radius=args.radius,
+                thickness=args.thickness,
+                show=False)
+
+            if args.show:
+                cv2.imshow('Frame', vis_frame)
+
+
+            if save_out_video:
+                videoWriter.write(vis_frame)
+
+            if args.out_video_bg:
+                videoBGWriter.write(vis_bg_frame)
+
+            if args.show and cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            
+            cnt_frame = 0
         
-        bg = torch.full(cur_frame.shape, 255, dtype=torch.uint8).numpy(force=True) 
-        if args.bg_img != "":
-            bg = torchvision.io.read_image(args.bg_img).numpy(force=True) 
-            # print(bg.shape)
-            bg = rearrange(bg, 'a b c -> b c a')
-            # print (cur_frame.shape)
-            # print(bg.shape)
-        
-        # break
-
-        vis_bg_frame = vis_pose_result(
-            pose_model,
-            bg,
-            pose_results,
-            dataset=dataset,
-            dataset_info=dataset_info,
-            kpt_score_thr=args.kpt_thr,
-            radius=args.radius,
-            thickness=args.thickness,
-            show=False)
-
-        if args.show:
-            cv2.imshow('Frame', vis_frame)
-
-
-        if save_out_video:
-            videoWriter.write(vis_frame)
-
-        if args.out_video_bg:
-            videoBGWriter.write(vis_bg_frame)
-
-        if args.show and cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
+        cnt_frame = cnt_frame + 1
 
     if save_out_video:
         videoWriter.release()

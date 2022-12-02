@@ -2,3 +2,5 @@ mmpose/
 vis_results/
 
 *.pth
+
+a.py 
