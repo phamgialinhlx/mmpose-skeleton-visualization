@@ -127,4 +127,8 @@ python skeleton_pose.py mmdet_cfg.py /data/pill/emotion/mmpose/faster_rcnn_r50_f
 - Must enable the out-video-bg option to use this feature
 - ***default:*** white color backgroundSource code
 
+`frame-skip`:
+- **type:** int
+- Number of frames to skip each loop
+
 ---
