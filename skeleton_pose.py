@@ -169,7 +169,7 @@ def main():
     print('Running inference...')
     cnt_frame = 0 
     for frame_id, cur_frame in enumerate(mmcv.track_iter_progress(video)):
-        if cnt_frame == args.frame_skip + 1:
+        if cnt_frame == int(args.frame_skip) + 1:
             # get the detection results of current frame
             # the resulting box is (x1, y1, x2, y2)
             mmdet_results = inference_detector(det_model, cur_frame)
