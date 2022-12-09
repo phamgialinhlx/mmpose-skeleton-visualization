@@ -5,7 +5,7 @@
 **Step 1. Create a conda environment and activate it.**
 
 ```bash
-conda create --name openmmlab python**=**3.8 -y
+conda create --name openmmlab python=3.8 -y
 conda activate openmmlab
 ```
 
